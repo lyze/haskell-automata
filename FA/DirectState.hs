@@ -1,6 +1,5 @@
 {-# OPTIONS -Wall -fwarn-tabs #-}
-{-# LANGUAGE GADTs, FlexibleInstances, FlexibleContexts,
-  StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE GADTs, FlexibleInstances, FlexibleContexts #-}
 
 module FA.DirectState
   ( GenFAState(..)
@@ -12,11 +11,15 @@ module FA.DirectState
   , DFAState
   , dfaState
   , DFATransitions
+  , directToIndirectState
   ) where
 
 import Data.Map (Map)
 import Data.MultiMap (MultiMap)
-import FA.Mapping
+import FA.IndirectState (GenFAState')
+import qualified FA.IndirectState as Indirect
+import FA.Mapping (Mapping)
+import qualified FA.Mapping as Mapping
 import FA.StateType
 
 data GenFAState n t map a where -- we use a GADT to hide the constraints
@@ -26,12 +29,14 @@ data GenFAState n t map a where -- we use a GADT to hide the constraints
                 , transitions :: map a (GenFAState n t map a)
                } -> GenFAState n t map a
 
-deriving instance (Show n, Show t, Show a, Show (map a (GenFAState n t map a)))
-           => Show (GenFAState n t map a) -- requires UndecidableInstances
+directToIndirectState                        :: (Eq a, Mapping map a) =>
+                                                GenFAState id t map a
+                                             -> GenFAState' id t map a
+directToIndirectState (GenFAState n t aToSt) =
+  Indirect.GenFAState' n t $ Mapping.map FA.DirectState.stateId aToSt
 
-deriving instance (Read n, Read t, Read a, Eq n, Eq t, Eq a, Mapping map a,
-                   Read (map a (GenFAState n t map a)))
-           => Read (GenFAState n t map a) -- requires UndecidableInstances
+instance (Eq a, Mapping map a, Show n, Show t, Show a, Show (map a n)) => Show (GenFAState n t map a) where
+  show = show . directToIndirectState
 
 instance Eq n => Eq (GenFAState n t map a) where
   st == st' = stateId st == stateId st'

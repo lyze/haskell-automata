@@ -12,7 +12,7 @@ module FA.Automaton
   , equivs
   , removeUnreachable
   , directToIndirectFA
-  , directToIndirectState
+  , FA.DirectState.directToIndirectState
   , directToIndirectStates
   , indirectToDirectStates
   , indirectToDirectFA
@@ -33,7 +33,6 @@ import FA.IndirectState
 import FA.MapMaybeable (MapMaybeable)
 import qualified FA.MapMaybeable as MapMaybeable
 import FA.Mapping (Mapping)
-import qualified FA.Mapping as Mapping
 
 instance (Show k, Show a) => Show (MultiMap k a) where -- orphan instance
   show = show . MultiMap.toMap
@@ -117,12 +116,6 @@ removeUnreachable (GenFA _ q0) = pruneTransitions . go $ Set.singleton q0
                                  . Map.filter (`Set.notMember` r)
                                  $ Direct.transitions q
                   in Set.foldr f Set.empty r
-
-directToIndirectState                        :: (Eq a, Mapping map a) =>
-                                                GenFAState id t map a
-                                             -> GenFAState' id t map a
-directToIndirectState (GenFAState n t aToSt) =
-  GenFAState' n t $ Mapping.map FA.DirectState.stateId aToSt
 
 directToIndirectStates :: (Eq a, Mapping map a, Traversable coll)
                           => coll (GenFAState id t map a)
