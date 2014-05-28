@@ -13,30 +13,36 @@ import FA.Automaton
 import FA.DirectState
 
 minimizeDFA     :: (Eq a, Ord a) => DFA a -> DFA a
-minimizeDFA fa = GenFA { states = mergeEquivStates allStates finalSet allStates
-                       , startState = (\(x,_,_) -> x) $ mergeState
-                                      (startState fa) allStates finalSet
-                                      allStates }
-    where allStates = states fa
-          initialSet = Set.fromList [Set.fromList [x,y] | x <- allStates,
-                                     y <- allStates, oneFinal x y]
+minimizeDFA aut =
+  GenFA { states = mergeEquivStates theStates inequivPairs theStates
+        , startState = fst $ mergeState
+                       theStartState theStates inequivPairs theStates }
+    where GenFA theStates theStartState = removeUnreachable aut
+          initialSet = Set.fromList [Set.fromList [x,y] | x <- theStates,
+                                     y <- theStates, oneFinal x y]
           oneFinal :: DFAState a -> DFAState a -> Bool
           oneFinal st st' = case (stateType st, stateType st') of
                               (Final, Final) -> False
                               (NonFinal, NonFinal) -> False
                               _ -> True
-          finalSet = repeatUntilUnchanged allStates initialSet
+          inequivPairs = repeatUntilUnchanged theStates initialSet
 
-mergeEquivStates :: Ord a => [DFAState a] -> Set (Set (DFAState a))
-                 -> [DFAState a] -> [DFAState a]
-mergeEquivStates [] _ allStates = allStates
+mergeEquivStates                      :: Ord a =>
+                                         [DFAState a]
+                                      -> Set (Set (DFAState a))
+                                      -> [DFAState a]
+                                      -> [DFAState a]
+mergeEquivStates []     _   allStates = allStates
 mergeEquivStates (x:xs) set allStates = mergeEquivStates xs set states'
-    where (_,_,states') = mergeState x xs set allStates
+    where states' = snd $ mergeState x xs set allStates
 
--- state, list of possible merges, set of inequiv states, (merged state, list of remaining states to check, modified states)
-mergeState :: Ord a => DFAState a -> [DFAState a] -> Set (Set (DFAState a))
-           -> [DFAState a] -> (DFAState a, [DFAState a], [DFAState a])
-mergeState st [] _ allStates = (st,[],allStates)
+mergeState                         :: Ord a =>
+                                      DFAState a                 -- ^ state
+                                   -> [DFAState a]               -- ^ list of possible merges
+                                   -> Set (Set (DFAState a))     -- ^ set of inequiv states
+                                   -> [DFAState a]               -- ^ all states
+                                   -> (DFAState a, [DFAState a]) -- ^ (merged state, modified states)
+mergeState st [] _ allStates       = (st, allStates)
 mergeState st (x:xs) set allStates
     | Set.member (Set.fromList [st,x]) set = mergeState st xs set allStates
     | otherwise = mergeState (removeTrans x st st) xs set $ map

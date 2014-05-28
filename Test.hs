@@ -1,5 +1,5 @@
 {-# OPTIONS -fwarn-tabs -Wall -fno-warn-orphans -fno-warn-type-defaults #-}
-{-# LANGUAGE TypeSynonymInstances, FlexibleInstances, OverlappingInstances #-}
+{-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances, OverlappingInstances #-}
 
 module Test where
 
@@ -24,9 +24,14 @@ runTests = do quickCheck prop_DFAGenOneTransitionPerSymbol
               quickCheck prop_OneTransitionPerSymbolNFA
               quickCheck prop_AcceptTheSameStringsNFA
               quickCheck prop_NumStatesDFA
+              quickCheck prop_RemoveUnreachableIsIdempotent
+              quickCheck prop_AcceptTheSameStringsAfterRemovingUnreachable
               quickCheck prop_CannotBeReduced
               quickCheck prop_OneTransitionPerSymbolDFA
               quickCheck prop_AcceptTheSameStringsDFA
+
+runTests' :: IO Bool
+runTests' = $quickCheckAll
 
 -- DFA generator test
 prop_DFAGenOneTransitionPerSymbol :: DFA Char -> Bool
@@ -123,6 +128,18 @@ oneTransPerSymbolState st = all validTrans trans
 prop_AcceptTheSameStringsNFA       :: NFA String -> [String] -> Bool
 prop_AcceptTheSameStringsNFA aut s =
   accepts aut s == accepts (reduceNFA aut) (filter (not . null) s)
+
+-- removeUnreachable tests
+prop_RemoveUnreachableIsIdempotent     :: DFA Char -> Bool
+prop_RemoveUnreachableIsIdempotent aut =
+  let thePrunedDFA = removeUnreachable aut
+      thePrunedTwiceDFA = removeUnreachable thePrunedDFA
+  in length (states thePrunedDFA) == length (states thePrunedTwiceDFA)
+     && startState thePrunedDFA == startState thePrunedTwiceDFA
+
+prop_AcceptTheSameStringsAfterRemovingUnreachable       :: DFA Char -> String -> Bool
+prop_AcceptTheSameStringsAfterRemovingUnreachable aut s =
+  accepts aut s == accepts (minimizeDFA aut) s
 
 -- minimizeDFA tests
 prop_NumStatesDFA     :: DFA Char -> Bool

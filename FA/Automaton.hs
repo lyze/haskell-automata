@@ -1,3 +1,4 @@
+
 {-# OPTIONS -Wall -fwarn-tabs -fno-warn-orphans #-}
 {-# LANGUAGE ScopedTypeVariables, GADTs, FlexibleContexts,
   StandaloneDeriving, MultiParamTypeClasses, FlexibleInstances #-}
@@ -101,21 +102,21 @@ aReachable s (st:sts) seen = aReachable s sts (Set.union seen
                          $ Direct.transitions st
 
 removeUnreachable              :: Ord a => DFA a -> DFA a
-removeUnreachable (GenFA _ q0) = pruneTransitions . go $ Set.singleton q0
+removeUnreachable (GenFA _ q0) = pruneTransitions $ go (Set.singleton q0) [q0]
   where pruneTransitions qs =
           let qs' = Set.toList
                     . Set.map (mapTransitions $ Map.filter (`Set.member` qs))
                     $ qs
           in GenFA qs' q0
-        mapTransitions f (GenFAState n t d) = GenFAState n t $ f d
-        go r
-          | Set.null newQs = r
-          | otherwise           = go $ Set.union r newQs
-          where newQs =
-                  let f q accu = Map.foldr Set.insert accu
-                                 . Map.filter (`Set.notMember` r)
-                                 $ Direct.transitions q
-                  in Set.foldr f Set.empty r
+        mapTransitions k (GenFAState n t d) = GenFAState n t $ k d
+        go r []     = r
+        go r (q:qs) =
+          let (r', qs') = foldr f (r, qs) . Map.elems $ Direct.transitions q
+          in go r' qs'
+        f q o@(r, qs)
+          | Set.notMember q r = (Set.insert q r, q : qs)
+          | otherwise         = o
+
 
 directToIndirectStates :: (Eq a, Mapping map a, Traversable coll)
                           => coll (GenFAState id t map a)
